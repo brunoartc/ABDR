@@ -30,10 +30,8 @@
 #include <ESP8266mDNS.h>
 
 
-const char* ssid = "hidden";
-const char* password = "hidden";
-const char* usr = "hidden";
-const char* passwd = "hidden";
+const char *ssid = "hidden", *password = "hidden", *usr = "hidden", *passwd = "hidden", *ausr = "hidden", *apasswd = "hidden";
+int long prevmillis = 0;
 bool stat=0;
 
 ESP8266WebServer server ( 300 );
@@ -42,37 +40,59 @@ const int luz = 5;
 
 void handleRoot() {
   Serial.println("Client Connect");
-  while(!server.authenticate(usr, passwd)){
+  while(!server.authenticate(usr, passwd) || !server.authenticate(ausr, apasswd)){
     return server.requestAuthentication();
     delay(1);
-    server.send ( 200, "text/plain", " Senha ou usuario incorreto >.< " );
+    server.send ( 200, "text/plain", " Wrong user ou password >.< " );
   }
 	//digitalWrite ( luz, 1 );
 	char temp[600];
 	int sec = millis() / 1000;
 	int min = sec / 60;
 	int hr = min / 60;
-
-	snprintf ( temp, 600,
-
-"<html>\
-  <head>\
-    <title>Quarto</title>\
-    <style>\
-      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-    </style>\
-  </head>\
-  <body>\
-    <h1>v0.01</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
-    <p>GPIO2 <a href=\"ON\"><button>ON</button></a> <a href=\"OFF\"><button>OFF</button></a></p>\
-    <p>GPIO3 <a href=\"LUZ\"><button>LUZ</button></a> <a href=\"OFF\"><button>OFF</button></a></p>\
-    <img src=\"/test.svg\" />\
-  </body>\
-</html>",
-
-		hr, min % 60, sec % 60
-	);
+  if(!server.authenticate(ausr, apasswd)){
+  	snprintf ( temp, 600,
+  
+  "<html>\
+    <head>\
+      <title>ABDR</title>\
+      <style>\
+        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+      </style>\
+    </head>\
+    <body>\
+      <h1>v0.02</h1>\
+      <p>Uptime: %02d:%02d:%02d</p>\
+      <p>Light: %02d</p>\
+      <p>D2 <a href=\"ON\"><button>ON</button></a> <a href=\"OFF\"><button>OFF</button></a></p>\
+      <p>D2 <a href=\"LUZ\"><button>LUZ</button></a>\
+      <img src=\"/test.svg\" />\
+    </body>\
+  </html>",
+  
+  		hr, min % 60, sec % 60, analogRead(A0)
+  	);
+  } else {
+    snprintf ( temp, 600,
+  
+    "<html>\
+    <head>\
+      <title>ABDR</title>\
+      <style>\
+        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+      </style>\
+    </head>\
+    <body>\
+      <h1>v0.02a</h1>\
+      <p>Uptime: %02d:%02d:%02d</p>\
+      <p>LightLv: %02d</p>\
+      <p>D2 <a href=\"aLUZ\"><button>LUZ</button></a>\
+    </body>\
+  </html>",
+  
+      hr, min % 60, sec % 60, analogRead(A0)
+      );
+  }
 	server.send ( 200, "text/html", temp );
 	Serial.println("Server Sent, Sucesfull auth");
 }
@@ -127,8 +147,28 @@ void setup ( void ) {
 	server.on ( "/test.svg", drawGraph );
 
  
-	server.on ( "/test", []() {
-		server.send ( 200, "text/plain", "this works as well" );
+	server.on ( "/aluz", []() {
+    //server custom authentication
+    while(!server.authenticate(ausr, apasswd)){
+      return server.requestAuthentication();
+      delay(1);
+      server.send ( 200, "text/plain", " Senha ou usuario incorreto >.< " );
+    }
+  
+    handleRoot();
+    if (millis()>prevmillis){
+      
+      if (!stat){
+        stat=1; Serial.println("aLuz Ligada"); 
+      }
+      else{
+        stat=0; Serial.println("aLuz DesLigada"); 
+      }
+      prevmillis=millis()+60000;
+    } else{
+      server.send ( 200, "text/plain", "Wait a minute to use that function ;)" );
+    }
+    
 	} );
 
   
