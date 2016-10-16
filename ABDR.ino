@@ -40,10 +40,11 @@ const int luz = 5;
 
 void handleRoot() {
   Serial.println("Client Connect");
-  while(!server.authenticate(usr, passwd) || !server.authenticate(ausr, apasswd)){
+  while(!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
     return server.requestAuthentication();
     delay(1);
-    server.send ( 200, "text/plain", " Wrong user ou password >.< " );
+    server.send ( 200, "text/plain", " Usuario ou senha incorretos >.< " );
+    Serial.println("Usr ou senha incorretos");
   }
 	//digitalWrite ( luz, 1 );
 	char temp[600];
@@ -65,7 +66,7 @@ void handleRoot() {
       <p>Uptime: %02d:%02d:%02d</p>\
       <p>Light: %02d</p>\
       <p>D2 <a href=\"ON\"><button>ON</button></a> <a href=\"OFF\"><button>OFF</button></a></p>\
-      <p>D2 <a href=\"LUZ\"><button>LUZ</button></a>\
+      <p>D2 <a href=\"LUZ\"><button>LUZ</button></a></p>\
       <img src=\"/test.svg\" />\
     </body>\
   </html>",
@@ -94,7 +95,7 @@ void handleRoot() {
       );
   }
 	server.send ( 200, "text/html", temp );
-	Serial.println("Server Sent, Sucesfull auth");
+	Serial.println("Servidor Enviado e autenticado");
 }
 
 void handleNotFound() {
@@ -132,7 +133,7 @@ void setup ( void ) {
 	}
 
 	Serial.println ( "" );
-	Serial.print ( "Connected to " );
+	Serial.print ( "Conectado a: " );
 	Serial.println ( ssid );
 	Serial.print ( "IP address: " );
 	Serial.println ( WiFi.localIP() );
@@ -147,7 +148,7 @@ void setup ( void ) {
 	server.on ( "/test.svg", drawGraph );
 
  
-	server.on ( "/aluz", []() {
+	server.on ( "/aLUZ", []() {
     //server custom authentication
     while(!server.authenticate(ausr, apasswd)){
       return server.requestAuthentication();
@@ -155,18 +156,34 @@ void setup ( void ) {
       server.send ( 200, "text/plain", " Senha ou usuario incorreto >.< " );
     }
   
-    handleRoot();
     if (millis()>prevmillis){
       
       if (!stat){
-        stat=1; Serial.println("aLuz Ligada"); 
+        stat=1; Serial.println("aLuz Ligada"); handleRoot();
       }
       else{
-        stat=0; Serial.println("aLuz DesLigada"); 
+        stat=0; Serial.println("aLuz DesLigada"); handleRoot();
       }
       prevmillis=millis()+60000;
     } else{
-      server.send ( 200, "text/plain", "Wait a minute to use that function ;)" );
+        char msg[400];
+        snprintf ( msg, 400,
+  
+  "<html>\
+    <head>\
+      <meta http-equiv='refresh' content='2; /?'>\
+      <title>ABDR</title>\
+      <style>\
+        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+      </style>\
+    </head>\
+    <body>\
+      <p>Espere %d segundos para usar essa função novamente</p>\
+    </body>\
+  </html>",
+      (prevmillis-millis())/1000
+    );
+    server.send ( 200,"text/html", msg);
     }
     
 	} );
