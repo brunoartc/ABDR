@@ -29,7 +29,6 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 
-
 const char *ssid = "hidden", *password = "hidden", *usr = "hidden", *passwd = "hidden", *ausr = "hidden", *apasswd = "hidden";
 int long prevmillis = 0;
 bool stat=0;
@@ -38,20 +37,49 @@ ESP8266WebServer server ( 300 );
 
 const int luz = 5;
 
-void handleRoot() {
-  Serial.println("Client Connect");
-  while(!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
-    return server.requestAuthentication();
-    delay(1);
-    server.send ( 200, "text/plain", " Usuario ou senha incorretos >.< " );
-    Serial.println("Usr ou senha incorretos");
+void sluz() {
+  if (stat) {digitalWrite ( luz , 1 );}
+  else {digitalWrite ( luz , 0 );}
+  Serial.println("LUZ");
+}
+
+
+void rfs(const char* xas, const char* xmsg) { 
+  
+  if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
+      return server.requestAuthentication();
   }
+  
+  char msg[400];
+        snprintf ( msg, 400,
+  "<html>\
+    <head>\
+      <meta http-equiv='rfs' content='2; %d'>\
+      <title>ABDR</title>\
+      <style>\
+        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+      </style>\
+    </head>\
+    <body>\
+      <p>%d %d s</p>\
+    </body>\
+  </html>",
+      xas, xmsg, (prevmillis-millis())/1000
+    );
+    server.send ( 200,"text/html", msg);  
+}
+
+void handleRoot() {
+  
+  if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
+      return server.requestAuthentication();
+  }
+  
+  Serial.println("Client Connect");
 	//digitalWrite ( luz, 1 );
 	char temp[600];
-	int sec = millis() / 1000;
-	int min = sec / 60;
-	int hr = min / 60;
-  if(!server.authenticate(ausr, apasswd)){
+	int sec = millis() / 1000, min = sec / 60, hr = min / 60;
+  if (!server.authenticate(ausr, apasswd)) {
   	snprintf ( temp, 600,
   
   "<html>\
@@ -73,6 +101,7 @@ void handleRoot() {
   
   		hr, min % 60, sec % 60, analogRead(A0)
   	);
+    
   } else {
     snprintf ( temp, 600,
   
@@ -119,18 +148,31 @@ void handleNotFound() {
 
 void setup ( void ) {
 	pinMode ( luz, OUTPUT );
+  int Llv=analogRead(A0);
 	digitalWrite ( luz, 0 );
+  delay(2);
+  if (Llv-analogRead(A0)>0){
+    digitalWrite ( luz, 1 );
+    Llv=1;
+  } else {
+    Llv=0;
+  }
 	Serial.begin ( 115200 );
 	WiFi.begin ( ssid, password );
 	Serial.println ( "" );
 
 	// Wait for connection
 	while ( WiFi.status() != WL_CONNECTED ) {
-		digitalWrite(luz,1);
-		delay ( 500 );
-		Serial.print ( "." );
-    digitalWrite( luz,0);
+  
+    digitalWrite ( luz, 1 );
+  	delay ( 250 );
+  	Serial.print ( "." );
+    digitalWrite ( luz, 0 );
+    delay ( 250 );
+     
 	}
+ 
+  digitalWrite ( luz, Llv );
 
 	Serial.println ( "" );
 	Serial.print ( "Conectado a: " );
@@ -150,10 +192,8 @@ void setup ( void ) {
  
 	server.on ( "/aLUZ", []() {
     //server custom authentication
-    while(!server.authenticate(ausr, apasswd)){
+    if( !server.authenticate(ausr, apasswd) ){
       return server.requestAuthentication();
-      delay(1);
-      server.send ( 200, "text/plain", " Senha ou usuario incorreto >.< " );
     }
   
     if (millis()>prevmillis){
@@ -166,52 +206,33 @@ void setup ( void ) {
       }
       prevmillis=millis()+60000;
     } else{
-        char msg[400];
-        snprintf ( msg, 400,
-  
-  "<html>\
-    <head>\
-      <meta http-equiv='refresh' content='2; /?'>\
-      <title>ABDR</title>\
-      <style>\
-        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-      </style>\
-    </head>\
-    <body>\
-      <p>Espere %d segundos para usar essa função novamente</p>\
-    </body>\
-  </html>",
-      (prevmillis-millis())/1000
-    );
-    server.send ( 200,"text/html", msg);
     }
     
 	} );
 
   
   server.on ( "/ON", []() {
-    handleRoot();
     stat=0;
+    rfs("/?", "Voce sera redirecionado");
   } );
 
   
   server.on ( "/OFF", []() {
-    handleRoot();
     stat=1;
+    rfs("/?", "Voce sera redirecionado");
   } );
 
   
-  server.on ( "/LUZ", []() {
-    while(!server.authenticate(usr, passwd)){
-      return server.requestAuthentication();
-      delay(1);
-      server.send ( 200, "text/plain", " Senha ou usuario incorreto >.< " );
-    }
-  
-    handleRoot();
-    
-    if (!stat){stat=1;Serial.println("Luz Ligada");}
-    else {stat=0;Serial.println("Luz DesLigada");}
+  server.on ( "/LUZ", []() {   
+    if (!stat){
+        stat=1; Serial.println("aLuz Ligada");
+      }
+      else{
+        stat=0; Serial.println("aLuz DesLigada");
+      };
+      
+      rfs("/?", "Voce sera redirecionado");
+      
   } );
 
   
@@ -220,10 +241,11 @@ void setup ( void ) {
 	Serial.println ( "HTTP server started" );
 }
 
+
+
 void loop ( void ) {
 	server.handleClient();
-  if (stat) {digitalWrite ( luz , 1 );}
-  else {digitalWrite ( luz , 0 );}
+  sluz();
 }
 
 
