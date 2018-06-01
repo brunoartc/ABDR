@@ -1,89 +1,120 @@
 /*
- * Copyright (c) 2016, brunoartc
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
+   Copyright (c) 2016, brunoartc
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without modification,
+   are permitted provided that the following conditions are met:
+
  * * Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- *
+     list of conditions and the following disclaimer.
+
  * * Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+     list of conditions and the following disclaimer in the documentation and/or
+     other materials provided with the distribution.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+
+
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUDP.h>
+#include <WiFiManager.h>
+#include <DNSServer.h>
 
+Adafruit_SSD1306 display(3);
+WiFiManager wifiManager;
+
+const char *ssid = "", *password = "", *usr = "admin", *passwd = "admin";
 int long prevmillis = 0;
-bool stat=0, bt=0;
-String logg;
-int logn=0;
+bool stat = 0, bt = 0;
+String logg, senha="";
+int logn = 0;
+int x = 0;
 
-ESP8266WebServer server ( 300 );
+ESP8266WebServer server ( 80 );
 
-const int luz = 5, btp=4;
 
-void loga(String x){
-    logn++;
-    logg += "\n";
-    logg += logn;
-    int sec = millis() / 1000, minn = sec / 60, hr = minn / 60;
-    logg += "(";
-    logg += hr;
-    logg += ":";
-    logg += minn % 60;
-    logg += ":";
-    logg += sec % 60;
-    logg += "): ";
-    if (x!="botao") logg += server.client().remoteIP().toString();
-    logg += "(";
-    logg += x;
-    logg += ")";
+
+
+
+const int luz = 5, btp = 4;
+
+void loga(String x) {
+  logn++;
+  logg += "\n";
+  logg += logn;
+  int sec = millis() / 1000, minn = sec / 60, hr = minn / 60;
+  logg += "(";
+  logg += hr;
+  logg += ":";
+  logg += minn % 60;
+  logg += ":";
+  logg += sec % 60;
+  logg += "): ";
+  if (x != "botao") logg += server.client().remoteIP().toString();
+  logg += "(";
+  logg += x;
+  logg += ")";
 }
 
-void ba(){
-  if(digitalRead(btp) == 1){
-    if (!bt){ if (!stat){        stat= 1;loga("botao");    }      else{        stat= 0;loga("botao");     };}
-    bt= 1;
+void ba() {
+  if (digitalRead(btp) == 1) {
+    if (!bt) {
+      if (!stat) {
+        stat = 1;
+        loga("botao");
+      }      else {
+        stat = 0;
+        loga("botao");
+      };
+    }
+    bt = 1;
     delay( 5 );
   } else {
-    bt= 0;
+    bt = 0;
     delay( 5 );
   }
 }
 
 void sluz() {
-  if (stat) {digitalWrite ( luz , 1 );}
-  else {digitalWrite ( luz , 0 );}
+  if (stat) {
+    digitalWrite ( luz , 1 );
+  }
+  else {
+    digitalWrite ( luz , 0 );
+  }
   //Serial.println("LUZ");
 }
 
 
-void rfs() { 
+void rfs() {
   loga("rfs");
-  if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
-      return server.requestAuthentication();
+  if (!server.authenticate(usr, passwd)) {
+    return server.requestAuthentication();
   }
-  
+
   char msg[400];
-        snprintf ( msg, 400,
-  "<html>\
+  snprintf ( msg, 400,
+             "<html>\
     <head>\
       <meta http-equiv='refresh' content='2; /?'>\
       <title>ABDR</title>\
@@ -96,23 +127,25 @@ void rfs() {
       <iframe src='http://free.timeanddate.com/clock/i5gd6hxo/n233' frameborder='0' width='116' height='18'></iframe>\
     </body>\
   </html>",
-      (prevmillis-millis())/1000
-    );
-    server.send ( 200,"text/html", msg);  
+             (prevmillis - millis()) / 1000
+           );
+  server.send ( 200, "text/html", msg);
 }
+
+
 
 void handleRoot() {
   loga("handleRoot");
-  if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
-      return server.requestAuthentication();
+  if (!server.authenticate(usr, passwd)) {
+    return server.requestAuthentication();
   }
-  
-  Serial.println("Client Connect");
-	//digitalWrite ( luz, 1 );
-	char temp[600];
-	int sec = millis() / 1000, min = sec / 60, hr = min / 60;
-  if (!server.authenticate(ausr, apasswd)) {
-  	snprintf ( temp, 600,
+
+Serial.println("Client Connect");
+  //digitalWrite ( luz, 1 );
+  char temp[600];
+  int sec = millis() / 1000, min = sec / 60, hr = min / 60;
+  if (server.authenticate(usr, passwd)) {
+    snprintf ( temp, 600,
   
   "<html>\
     <head>\
@@ -132,183 +165,169 @@ void handleRoot() {
     </body>\
   </html>",
   
-  		hr, min % 60, sec % 60, analogRead(A0)
-  	);
-    
-  } else {
-    snprintf ( temp, 600,
-  
-    "<html>\
-    <head>\
-      <meta http-equiv='refresh' content='5'/>\
-      <title>ABDR</title>\
-      <style>\
-        body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-      </style>\
-    </head>\
-    <body>\
-      <h1>v0.02a</h1>\
-      <p>Uptime: %02d:%02d:%02d</p>\
-      <p>LightLv: %02d</p>\
-      <p>D2 <a href=\"aLUZ\"><button>LUZ</button></a>\
-    </body>\
-  </html>",
-  
       hr, min % 60, sec % 60, analogRead(A0)
-      );
+    );
   }
-	server.send ( 200, "text/html", temp );
-	Serial.println("Servidor Enviado e autenticado");
+  server.send ( 200, "text/html", temp );
+  Serial.println("Servidor Enviado e autenticado");
 }
 
 void handleNotFound() {
   loga("handleNotFound");
-	digitalWrite ( luz, 1 );
-	String message = "((>_<)) 404 File Not Found\n\n";
-	message += "URI: ";
-	message += server.uri();
-	message += "\nMethod: ";
-	message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
-	message += "\nArguments: ";
-	message += server.args();
-	message += "/n";
+  digitalWrite ( luz, 1 );
+  String message = "((>_<)) 404 File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
 
-	for ( uint8_t i = 0; i < server.args(); i++ ) {
-		message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
-	}
+  for ( uint8_t i = 0; i < server.args(); i++ ) {
+    message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
+  }
 
-	server.send ( 404, "text/plain", message );
-	//digitalWrite ( luz, 0 );
+  server.send ( 404, "text/plain", message );
+  //digitalWrite ( luz, 0 );
 }
 
 void setup ( void ) {
   Serial.begin ( 115200 );
-	pinMode ( luz, OUTPUT );
+
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  
+  Wire.begin(12,13);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+
+  display.setCursor(0,0);
+  
+  //display.drawBitmap(32, 64,  ory, 64, 128, '0');
+
+  
+  while (x < 5) {
+
+    senha += char(random(97, 122));
+    x++;
+  }
+  display.setTextSize(5);
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println(":)");
+  display.display();
+
+  delay(200);
+
+  display.setTextSize(2);
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("github.com/");
+  display.println("brunoartc");
+  display.display();
+  delay(1000);
+
+  display.setTextSize(1);
+  
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("Configuracao inicial:");
+  display.println("Conecte ao quartoo");
+  display.print("Senha= ");
+  display.println(senha);
+  display.println("Entre em 192.168.4.1");
+  display.println("no seu computador");
+  display.println("");
+  display.print("          brunoartc");
+  display.display();
+  
+  //wifiManager.resetSettings();
+  const char* senhab = senha.c_str();
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("quartoo",senhab);
+  pinMode ( luz, OUTPUT );
   pinMode ( btp, INPUT );
-  pinMode ( LED_BUILTIN, 1 );
-  // For analogic input (Old light switch)
-  /* digitalWrite ( luz, 1 );
-  int Llv=analogRead( A0 );
-  delay( 100 );
-	digitalWrite ( luz, 0 );
-  Serial.println ( "teste..." );
-  Serial.println (Llv-analogRead(A0));
-  if (Llv-analogRead(A0)>0){
-    digitalWrite ( luz, 1 );
-    Serial.println ( "Llv=1" );
-    Llv=1;
-  } else {
-    Llv=0;
-    Serial.println ( "Llv=0" );
-  } */
-	WiFi.begin ( ssid, password );
-	Serial.println ( "" );
 
-	// Wait for connection
-	while ( WiFi.status() != WL_CONNECTED ) {
-  
-    digitalWrite ( LED_BUILTIN, 1 );
-  	delay ( 250 );
-  	Serial.print ( "." );
-    digitalWrite ( LED_BUILTIN, 0 );
-    delay ( 250 );
-     
-	}
- 
- digitalWrite ( LED_BUILTIN, 1 );
- pinMode ( LED_BUILTIN, 0 );
- 
-  // digitalWrite ( luz, Llv );
 
-	Serial.println ( "" );
-	Serial.print ( "Conectado a: " );
-	Serial.println ( ssid );
-	Serial.print ( "IP address: " );
-	Serial.println ( WiFi.localIP() );
 
-	if ( MDNS.begin ( "abdr" ) ) {
-		Serial.println ( "MDNS responder started" );
-	}
+  Serial.println ( "" );
+  Serial.print ( "Conectado a: " );
+  Serial.println ( ssid );
+  Serial.print ( "IP address: " );
+  Serial.println ( WiFi.localIP() );
 
-	server.on ( "/", handleRoot );
+  if ( MDNS.begin ( "abdr" ) ) {
+    Serial.println ( "MDNS responder started" );
+  }
 
-  
-	server.on ( "/test.svg", drawGraph );
+  server.on ( "/", handleRoot );
 
- 
-	server.on ( "/aLUZ", []() {
-    loga("aLUZ!!!!!!!!!!!!!!!!");
-    //server custom authentication
-    if( !server.authenticate(ausr, apasswd) ){
-      return server.requestAuthentication();
-    }
-  
-    if (millis()>prevmillis){
-      
-      if (!stat){
-        stat=1; Serial.println("aLuz Ligada"); rfs();
-      }
-      else{
-        stat=0; Serial.println("aLuz DesLigada"); rfs();
-      }
-      prevmillis=millis()+60000;
-    } else{
-        rfs();
-    }
-    
-	} );
 
-  
   server.on ( "/ON", []() {
-    if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
+    if (!server.authenticate(usr, passwd)) {
       return server.requestAuthentication();
-  }
+    }
     rfs();
-    stat=0;
+    stat = 0;
   } );
 
-  
+
   server.on ( "/OFF", []() {
-    if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
+    if (!server.authenticate(usr, passwd)) {
       return server.requestAuthentication();
-  }
+    }
     rfs();
-    stat=1;
+    stat = 1;
   } );
 
-  
-  server.on ( "/LUZ", []() { 
+
+  server.on ( "/LUZ", []() {
     loga("LUZ!!!!!!!!!!!!!!!!") ;
-    if (!server.authenticate(usr, passwd) && !server.authenticate(ausr, apasswd)){
+    if (!server.authenticate(usr, passwd)) {
       return server.requestAuthentication();
-  }
-    rfs(); 
-    if (!stat){
-        stat=1; Serial.println("aLuz Ligada");
-      }
-      else{
-        stat=0; Serial.println("aLuz DesLigada");
-      };
-      
-      
+    }
+    rfs();
+    if (!stat) {
+      stat = 1; Serial.println("aLuz Ligada");
+    }
+    else {
+      stat = 0; Serial.println("aLuz DesLigada");
+    };
+
+
   } );
-  
-  server.on ( "/logg", []() { 
-    if (!server.authenticate(usr, passwd)){
+
+  server.on ( "/logg", []() {
+    if (!server.authenticate(usr, passwd)) {
       return server.requestAuthentication();
-  }
+    }
     loga("logg '-'");
     server.send ( 200, "text/plain", logg );
   } );
-  
-  server.on ( "/test", []() { 
+
+  server.on ( "/test", []() {
     loga("test");
     server.send ( 404, "text/plain", "Confirmado" );
   } );
-  
-	server.onNotFound ( handleNotFound );
-	server.begin();
-	Serial.println ( "HTTP server started" );
+
+
+  server.onNotFound ( handleNotFound );
+  server.begin();
+  Serial.println ( "HTTP server started" );
+}
+
+void info() {
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("CONECTADO A " + WiFi.SSID());
+  display.println("Para controle acesse");
+  display.println("abdr.local./ ou");
+  display.println(WiFi.localIP());
+  display.println("");
+  display.println("");
+  display.print("             ");
+  display.println(WiFi.RSSI());
+  display.display();
 }
 
 
@@ -317,33 +336,15 @@ void loop ( void ) {
   if (Serial.available() > 0) {
     // read the incoming byte:
     char PCK = Serial.read();
-    if (PCK=='l') Serial.println(logg);
+    if (PCK == 'l') Serial.println(logg);
   }
-  
+
+  info();
+
   ba();
-  
-	server.handleClient();
-  
+
+  server.handleClient();
+
   sluz();
-  
+
 }
-
-
-void drawGraph() {
-	String out = "";
-	char temp[100];
-	out += "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"400\" height=\"150\">\n";
- 	out += "<rect width=\"400\" height=\"150\" fill=\"rgb(250, 230, 210)\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" />\n";
- 	out += "<g stroke=\"black\">\n";
- 	int y = rand() % 130;
- 	for (int x = 10; x < 390; x+= 10) {
- 		int y2 = rand() % 130;
- 		sprintf(temp, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke-width=\"1\" />\n", x, 140 - y, x + 10, 140 - y2);
- 		out += temp;
- 		y = y2;
- 	}
-	out += "</g>\n</svg>\n";
-
-	server.send ( 200, "image/svg+xml", out);
-}
-
